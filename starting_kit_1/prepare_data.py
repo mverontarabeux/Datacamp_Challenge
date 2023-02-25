@@ -216,6 +216,8 @@ def create_train_test_feather(mode:str='public',
         else:
             path_file = os.path.join(PATH, "data")
 
+        train.reset_index(drop=True, inplace=True)
+        test.reset_index(drop=True, inplace=True)
         train.to_feather(os.path.join(path_file, FEATHER_FILES_NAMES["train"]))
         test.to_feather(os.path.join(path_file, FEATHER_FILES_NAMES["test"]))
 
