@@ -291,8 +291,8 @@ def get_train_test_public() -> pd.DataFrame:
 
 if __name__ == '__main__':
     # Load the data
-    X_train_priv, X_test_priv, y_train_priv, y_test_priv = get_train_test_private()
-    X_train, X_test, y_train, y_test = get_train_test_public()
+    X_train_priv, X_test_priv, y_train_priv, y_test_priv = get_train_test("private")
+    X_train, X_test, y_train, y_test = get_train_test("public")
 
     # Check shapes
     print(f"X_train shape : {X_train.shape}")
