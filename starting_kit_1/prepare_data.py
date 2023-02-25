@@ -6,14 +6,47 @@ from typing import List
 
 from sklearn.model_selection import train_test_split
 
-TRAIN_FILES_NAMES = ["BBC", "CNN", "CNNIBN", "NDTV"]
-test = ["BBC"]
-SCORE_FILES_NAME = ["TIMESNOW"]
-TRAIN_TEST_DATA_FEATHER = "train_test_data.feather"
-SCORE_DATA_FEATHER = "score_data.feather"
+TXT_FILES_NAMES = {
+    "public":["BBC", "CNN", "CNNIBN", "NDTV"],
+    "private":["TIMESNOW"],
+    "test":["BBC"]
+}
+FEATHER_FILES_NAMES = {
+    "train":"train.feather",
+    "test":"test.feather"
+}
+PATH="."
 
 
-def get_string_columns():
+def check_files(mode:str="public") -> bool:
+    """Return true if all the needed files exists 
+
+    Parameters
+    ----------
+    mode : str, optional
+        where to look, by default public
+
+    Returns
+    -------
+    bool
+    """
+    already_created=True
+    for file in FEATHER_FILES_NAMES.keys():
+        if mode=="public":
+            path_file = os.path.join(PATH,
+                                     "data", "public", 
+                                     FEATHER_FILES_NAMES[file])
+        else:
+            path_file = os.path.join(PATH,
+                                     "data", 
+                                     FEATHER_FILES_NAMES[file])
+        if not os.path.exists(path_file):
+            already_created=False
+            break
+    return already_created
+
+
+def get_text_columns():
     """Set the bins columns
     Motion Distribution (40 bins)
     Frame Difference Distribution (32 bins)
@@ -68,7 +101,7 @@ def get_string_columns():
     return DICT_COLUMNS
 
 
-def get_data(file:str='Pub\BBC.txt') -> pd.DataFrame:
+def get_data_from_txt(file:str='data\BBC.txt') -> pd.DataFrame:
     """ Convert a txt file of the TV News Channel Commercial Detection Dataset  
     to a pandas dataframe
     The zip file containing the data can be downloaded at
@@ -78,7 +111,7 @@ def get_data(file:str='Pub\BBC.txt') -> pd.DataFrame:
     Parameters
     ----------
     file : str, 
-        the path of the file to convert, by default 'Pub\BBC.txt'
+        the path of the file to convert, by default 'data\BBC.txt'
 
     Returns
     -------
@@ -127,42 +160,44 @@ def get_data(file:str='Pub\BBC.txt') -> pd.DataFrame:
                       
     print(f"{cpt} lines extracted from {file_name} - {int(time.time()-begin)} seconds\n")
 
-    
+    # Format the output into dataframe with text columns
     data = pd.DataFrame(data)
-    DICT_COLUMNS = get_string_columns()
+    DICT_COLUMNS = get_text_columns()
     data.columns = [DICT_COLUMNS[key] for key in data.keys()]
+
     return data
 
 
-def create_data_file(datafilename:str, 
-                     files_list:list=TRAIN_FILES_NAMES,
-                     overwrite:bool=True) -> None:
-    """ Converts each file in the files_list to dataframe using get_data
+def create_train_test_feather(mode:str='public', 
+                              test_size:float=0.20) -> None:
+    """ Converts each file in the files_list to dataframe using get_data_from_txt
     Creates the concatenated version as one dataframe
-    Finally, save it as {datafilename}.feather 
+    Split into train and test
+    Finally, save the dataframes as {datafilename}.feather  : pyarrow needed
 
     Parameters
     ----------
-    datafilename : str
-        name of the file to be created
-    files_list : list, optional
-        list of file names to concatenate as dataframe and to save as feather, 
-        by default TRAIN_FILES_NAMES
-    overwrite:bool, optional
-        if set to true, and datafilename already exists, overwrite it 
+    mode: str, public or private
+        if the files have to be public or private
+    test_size : float
+        train_test_split argument 
+
     Returns
     -------
     None
     """
 
-    assert isinstance(files_list, list)
-    if os.path.exists(datafilename) and not overwrite:
-        print(f"{datafilename} already exists. Can be used as source file")
+    # if one file does not exists, recreate all files
+    check_exist = check_files(mode=mode)
+    
+    if check_exist:
+        print(f"Train and test files already exist. Can be used for modelling")
+        
     else:
         list_df_temp_files = []
-        for file in files_list:
+        for file in TXT_FILES_NAMES[mode]:
             # Load each file one by one
-            df_temp_file = get_data(f"Pub\{file}.txt")
+            df_temp_file = get_data_from_txt(f"data\{file}.txt")
             # Add the channel name
             df_temp_file["channel"] = [file]*len(df_temp_file["label"])
             list_df_temp_files.append(df_temp_file)
@@ -170,97 +205,103 @@ def create_data_file(datafilename:str,
         # Concatenate the list of df and save as feather
         df_all_train_files = pd.concat(list_df_temp_files)
         df_all_train_files.reset_index(inplace=True, drop=True)
-        df_all_train_files.to_feather(datafilename) # need pyarrow installed
+
+        # Split train/test
+        train, test = train_test_split(df_all_train_files,
+                                        test_size=test_size, 
+                                        random_state=42)
+        
+        if mode=="public":
+            path_file = os.path.join(PATH, "data", "public")
+        else:
+            path_file = os.path.join(PATH, "data")
+
+        train.to_feather(os.path.join(path_file, FEATHER_FILES_NAMES["train"]))
+        test.to_feather(os.path.join(path_file, FEATHER_FILES_NAMES["test"]))
 
     return None
 
 
-def get_train_test_data(filename:str=TRAIN_TEST_DATA_FEATHER, 
-                        test_size:float=None) -> pd.DataFrame:
+def get_train_test(mode:str="public") -> pd.DataFrame:
     """Get the train and test data contained in filename 
     Returns it as distincts features and labels
 
     Parameters
     ----------
-    filename : str, optional
-        file name from which to feed, by default TRAIN_TEST_DATA_FEATHER
-    test_size : float, optional
-        test data size compared to the whole data,
-        by default None to not split the data
-
+    mode : str, optional
+        where to look, by default public
+        
     Returns
     -------
     pd.DataFrame
         X_train, X_test, y_train, y_test
-        if test_size is set to None, X_test and y_test are set as None
 
     Raises
     ------
     Exception
         If filename is not found 
     """
-    if not os.path.exists(filename):
-        raise Exception(f"{filename} not found. Use create_file_train_test_data to create it")
+
+    # if one file does not exists, recreate all files
+    check_exist = check_files(mode=mode)
+    if not check_exist:
+        create_train_test_feather(mode=mode)
+        
+    if mode=="public":
+        path_file = os.path.join(PATH, "data", "public")
     else:
-        data = pd.read_feather(filename)
-        X = data.drop("label", axis=1)
-        y = data["label"]
-        if not test_size is None:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, 
-                                                                test_size=test_size, 
-                                                                random_state=42)
-        else:
-            X_train, X_test, y_train, y_test = X, None, y, None
-    
+        path_file = os.path.join(PATH, "data")
+
+    train = pd.read_feather(os.path.join(path_file, 
+                                         FEATHER_FILES_NAMES["train"])
+    )
+    test = pd.read_feather(os.path.join(path_file, 
+                                        FEATHER_FILES_NAMES["test"])
+    )
+
+    X_train = train.drop("label", inplace=False, axis=1)
+    X_test = test.drop("label", inplace=False, axis=1)
+    y_train = train["label"]
+    y_test = test["label"]
+
     return X_train, X_test, y_train, y_test
     
 
-def get_score_data(filename:str=SCORE_DATA_FEATHER) -> pd.DataFrame:
-    """Get the scoring data contained in filename 
+def get_train_test_private() -> pd.DataFrame:
+    """Get the scoring data  
     Returns it as distincts features and labels
-
-    Parameters
-    ----------
-    filename : str, optional
-        file name from which to feed, by default SCORE_DATA_FEATHER
 
     Returns
     -------
     pd.DataFrame
         X and y 
-
-    Raises
-    ------
-    Exception
-        If filename is not found 
     """
-    if not os.path.exists(filename):
-        raise Exception(f"{filename} not found. Use create_file_train_test_data to create it")
-    else:
-        data = pd.read_feather(filename)
-        X_score = data.drop("label", axis=1)
-        y_score = data["label"]
-    return X_score, y_score
+    return get_train_test("private")
+
+def get_train_test_public() -> pd.DataFrame:
+    """Get the scoring data  
+    Returns it as distincts features and labels
+
+    Returns
+    -------
+    pd.DataFrame
+        X and y 
+    """
+    return get_train_test("public")
 
 
 if __name__ == '__main__':
-    # Create the feather files of train test data 
-    create_data_file(datafilename=TRAIN_TEST_DATA_FEATHER, 
-                     files_list=TRAIN_FILES_NAMES, 
-                     overwrite=False)
-    # Create the feather files of scoring data 
-    create_data_file(datafilename=SCORE_DATA_FEATHER, 
-                     files_list=SCORE_FILES_NAME, 
-                     overwrite=False)
-    
     # Load the data
-    X_train, X_test, y_train, y_test = get_train_test_data(test_size=0.25)
-    X_score, y_score = get_score_data()
+    X_train, X_test, y_train, y_test = get_train_test_public()
+    X_train_priv, X_test_priv, y_train_priv, y_test_priv = get_train_test_private()
 
     # Check shapes
     print(f"X_train shape : {X_train.shape}")
     print(f"X_test shape : {X_test.shape}")
     print(f"y_train shape : {y_train.shape}")
-    print(f"y_test shape : {y_test.shape}")
-    print(f"X_score shape : {X_score.shape}")
-    print(f"y_score shape : {y_score.shape}")
+    print(f"y_test shape : {y_test.shape}\n")
+
+    print(f"X_train_private shape : {X_train_priv.shape}")
+    print(f"X_test_private shape : {X_test_priv.shape}")
+    print(f"y_train_private shape : {y_train_priv.shape}")
+    print(f"y_test_private shape : {y_test_priv.shape}")
