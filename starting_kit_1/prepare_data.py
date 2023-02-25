@@ -237,11 +237,6 @@ def get_train_test(mode:str="public") -> pd.DataFrame:
     -------
     pd.DataFrame
         X_train, X_test, y_train, y_test
-
-    Raises
-    ------
-    Exception
-        If filename is not found 
     """
 
     # if one file does not exists, recreate all files
@@ -270,32 +265,34 @@ def get_train_test(mode:str="public") -> pd.DataFrame:
     
 
 def get_train_test_private() -> pd.DataFrame:
-    """Get the scoring data  
+    """Get the private (scoring) data  
     Returns it as distincts features and labels
+    for the train and test set 
 
     Returns
     -------
     pd.DataFrame
-        X and y 
+        X_train, X_test, y_train, y_test
     """
     return get_train_test("private")
 
 def get_train_test_public() -> pd.DataFrame:
-    """Get the scoring data  
-    Returns it as distincts features and labels
+    """Get the public data  
+    Returns it as distincts features and labels 
+    for the train and test set 
 
     Returns
     -------
     pd.DataFrame
-        X and y 
+        X_train, X_test, y_train, y_test
     """
     return get_train_test("public")
 
 
 if __name__ == '__main__':
     # Load the data
-    X_train, X_test, y_train, y_test = get_train_test_public()
     X_train_priv, X_test_priv, y_train_priv, y_test_priv = get_train_test_private()
+    X_train, X_test, y_train, y_test = get_train_test_public()
 
     # Check shapes
     print(f"X_train shape : {X_train.shape}")
