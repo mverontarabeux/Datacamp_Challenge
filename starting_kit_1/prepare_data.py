@@ -256,11 +256,14 @@ def get_train_test(mode:str="public") -> pd.DataFrame:
                                         FEATHER_FILES_NAMES["test"])
     )
 
+    # Split between data and labels
     X_train = train.drop("label", inplace=False, axis=1)
     X_test = test.drop("label", inplace=False, axis=1)
     y_train = train["label"]
     y_test = test["label"]
-
+    # Set the labels as (0,1) instead of (-1,1)
+    y_train = y_train.replace(-1,0)
+    y_test = y_test.replace(-1,0)
     return X_train, X_test, y_train, y_test
     
 
