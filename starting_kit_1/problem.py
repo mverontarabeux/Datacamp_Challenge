@@ -19,6 +19,7 @@ import os
 from typing import List
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
 
 # -----------------------------------------------------------------------------
 # 2. Providing a title
