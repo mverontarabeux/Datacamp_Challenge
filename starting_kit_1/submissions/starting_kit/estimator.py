@@ -20,11 +20,39 @@ class Scaler(BaseEstimator, TransformerMixin):
         res = pd.DataFrame(res,index=idx,columns=col)
 
         return res
+    
+def maxvariance(X: pd.DataFrame, threshold: int = 20) -> pd.Dataframe: 
+
+    """
+    For a given dataframe, keeps the number features with the highest variance
+
+    Parameters
+    ----------
+    X : dataframe
+    threshold : int
+        the number of features with the highest variance
+    """
+    var = X.var()
+    var = var.sort_values()
+    selected = var.tail(threshold)
+    col = list(selected.index.values)
+    X = X.loc[:, col]
+
+    return X
+
+class FeatureSelector(BaseEstimator):
+    def fit (self, X, y):
+        return self
+    
+    def transform(self, X, y):
+        return maxvariance(X, threshold = 20)
   
 def get_estimator():
+
+    featureselector = FeatureSelector()
     scaling = Scaler(StandardScaler())
     logreg = LogisticRegression(max_iter=100)
 
-    pipe = make_pipeline(scaling, logreg)
+    pipe = make_pipeline(scaling, featureselector, logreg)
 
     return pipe
