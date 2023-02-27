@@ -47,6 +47,23 @@ class FeatureSelector(BaseEstimator):
     def transform(self, X, y):
         return maxvariance(X, threshold = 20)
   
+
+class Classifier(BaseEstimator):
+    def __init__(self):
+        self.scaling = Scaler(StandardScaler())
+        self.logreg = LogisticRegression(max_iter=100)
+        self.cls = make_pipeline(self.scaling, self.logreg)
+    
+    def fit(self, X, y):
+        self.cls.fit(X, y)
+    
+    def predict(self, X):
+        return self.clf.predict(X)
+    
+    def predict_proba(self, X):
+        return self.cls.predict_proba(X)
+  
+
 def get_estimator():
 
     featureselector = FeatureSelector()
