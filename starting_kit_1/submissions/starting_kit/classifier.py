@@ -21,7 +21,7 @@ class Scaler(BaseEstimator, TransformerMixin):
 
         return res
     
-def maxvariance(X: pd.DataFrame, threshold: int = 20) -> pd.Dataframe: 
+def maxvariance(X: pd.DataFrame, threshold: int = 20) -> pd.DataFrame: 
 
     """
     For a given dataframe, keeps the number features with the highest variance
