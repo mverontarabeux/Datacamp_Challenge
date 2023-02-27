@@ -6,11 +6,13 @@ from sklearn.metrics import precision_score, recall_score
 
 import rampwf as rw
 from rampwf.score_types.classifier_base import ClassifierBaseScoreType
-from rampwf.workflows import Classifier
 
-# from problem import get_train_test
+# from rampwf.workflows import Classifier
+from warnings import simplefilter
+from sklearn.exceptions import ConvergenceWarning
+simplefilter("ignore", category=ConvergenceWarning)
 
-# from rampwf.utils.importing import import_module_from_source
+from rampwf.utils.importing import import_module_from_source
 import os
 import pandas as pd 
 import numpy as np
@@ -19,7 +21,6 @@ import os
 from typing import List
 
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import StratifiedShuffleSplit
 
 # -----------------------------------------------------------------------------
 # 2. Providing a title
@@ -34,6 +35,35 @@ Predictions = rw.prediction_types.make_multiclass(label_names=[0, 1])
 # -----------------------------------------------------------------------------
 # 4. Workflow definition : basic classification
 # -----------------------------------------------------------------------------
+
+class Classifier(object):
+    def __init__(self, workflow_element_names=['classifier']):
+        self.element_names = workflow_element_names
+        # self.name = 'classifier_workflow'  # temporary
+
+    def train_submission(self, module_path, X_array, y_array, train_is=None,
+                         prev_trained_model=None):
+        if train_is is None:
+            train_is = slice(None, None, None)
+        classifier = import_module_from_source(
+            os.path.join(module_path, self.element_names[0] + '.py'),
+            self.element_names[0],
+            sanitize=True
+        )
+        clf = classifier.Classifier()
+        # print("train_is ^^", train_is)
+        if prev_trained_model is None:
+            clf.fit(X_array, y_array)
+        else:
+            clf.fit(
+                X_array, y_array, prev_trained_model)
+        return clf
+
+    def test_submission(self, trained_model, X_array):
+        clf = trained_model
+        y_proba = clf.predict_proba(X_array)
+        return y_proba
+    
 workflow = Classifier()
 
 # -----------------------------------------------------------------------------
@@ -100,8 +130,10 @@ def get_cv(X, y, n_splits=5, shuffle=True, random_state=42):
     A generator that yields indices to split data into training and test sets.
     """
     
-    cv = StratifiedShuffleSplit(n_splits=8, test_size=0.2, random_state=57)
-    return cv.split(X, y)
+    kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    
+    for train_index, test_index in kf.split(X):
+        yield train_index, test_index
 
 # -----------------------------------------------------------------------------
 # 7. Provide the I/O methods : Training / testing data reader
@@ -391,11 +423,22 @@ def get_train_test_public() -> pd.DataFrame:
     """
     return get_train_test("public")
 
-def get_train_data(path="."):
-    X_train, _, y_train, _ = get_train_test_public()
+def get_train_data(path):
+    # return
+    # prepare_data_module = import_module_from_source(
+    #         os.path.join(path, 'prepare_data.py'),
+    #         'prepare_data',
+    #         sanitize=True,
+    #     )
+    # X_train, _, y_train, _ = prepare_data_module.get_train_test()
+    X_train, _, y_train, _ = get_train_test("public")
+    X_train,y_train = X_train.drop(columns=['channel']), y_train.drop(columns=['channel'])
+    X_train,y_train = X_train.fillna(0), y_train.fillna(0)
     return X_train, y_train
 
-def get_test_data(path="."):
-    _, X_test, _, y_test = get_train_test_public()
+def get_test_data(path):
+    _, X_test, _, y_test = get_train_test("public")
+    X_test,y_test = X_test.drop(columns=['channel']), y_test.drop(columns=['channel'])
+    X_test,y_test = X_test.fillna(0), y_test.fillna(0)
     return X_test, y_test
 

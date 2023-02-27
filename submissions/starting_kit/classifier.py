@@ -25,7 +25,6 @@ def maxvariance(X: pd.DataFrame, threshold: int = 20) -> pd.DataFrame:
 
     """
     For a given dataframe, keeps the number features with the highest variance
-
     Parameters
     ----------
     X : dataframe
@@ -41,18 +40,22 @@ def maxvariance(X: pd.DataFrame, threshold: int = 20) -> pd.DataFrame:
     return X
 
 class FeatureSelector(BaseEstimator):
-    def fit (self, X, y):
+    def fit(self, X, y):
         return self
-    
-    def transform(self, X, y):
-        return maxvariance(X, threshold = 20)
-  
 
+    def transform(self, X):
+        return maxvariance(X, threshold = 20)
+    
 class Classifier(BaseEstimator):
     def __init__(self):
         self.scaling = Scaler(StandardScaler())
+        # self.featureselector = FeatureSelector()
         self.logreg = LogisticRegression(max_iter=100)
-        self.cls = make_pipeline(self.scaling, self.logreg)
+        self.cls = make_pipeline(
+            self.scaling, 
+            # self.featureselector, 
+            self.logreg
+            )
     
     def fit(self, X, y):
         self.cls.fit(X, y)
@@ -63,13 +66,16 @@ class Classifier(BaseEstimator):
     def predict_proba(self, X):
         return self.cls.predict_proba(X)
   
-
 def get_estimator():
 
     featureselector = FeatureSelector()
     scaling = Scaler(StandardScaler())
     logreg = LogisticRegression(max_iter=100)
 
-    pipe = make_pipeline(scaling, featureselector, logreg)
+    pipe = make_pipeline(
+        scaling, 
+        # featureselector, 
+        logreg
+        )
 
     return pipe
